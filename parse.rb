@@ -3,7 +3,8 @@ require 'fileutils'
 require 'challonge-api'
 
 class Parser
-
+	attr_reader :tourns
+	attr_reader :game
 	class Member
 		attr_reader :name
 		attr_reader :id
@@ -15,7 +16,7 @@ class Parser
 		end
 
 		def to_s 
-			"Name: " + @name + "\n\tPlace: "+ @place.to_s + "\n\tId: " + @id
+			"Name: " + @name + "\n\tPlace: "+ @place.to_s + "\n\tId: " + @id + "\n"
 		end
 	end
 
@@ -43,30 +44,71 @@ class Parser
 				place << Member.new(test["name"].to_s, test["id"].to_s, test["final_rank"].to_i)
 			end
 			@places << {i => place}
+			@tourns = tourn
 		end
 	end
 
 	def write_results
-
+		sorter = Proc.new { |mem| mem.place }
 		@places.each do |hs|
-			raw_place = hs[hs.keys[0]].to_a
-			test = Proc.new { |mem| mem.place }
+			File.open("tourn/#{@game}/#{hs.keys[0]}/results.json", "w") do |line|
+				raw_place = hs[hs.keys[0]].to_a
+				raw_place.sort_by!(&sorter)
+				line << raw_place.to_json
+			end
 
-			raw_place.sort_by!(&test)
- 				
- 			raw_place.each{ |i|
- 				puts i.to_s
- 			}
 
-			# hs.keys.each { |name|
-			# 	File.open("tourn/#{name}/results.txt", "w").each { |file|
-
-			# 	}
-			# } 
+			# raw_place = hs[hs.keys[0]].to_a
+			# test = Proc.new { |mem| mem.place }
+			# raw_place.sort_by!(&sorter)
+			# File.open("tourn/#{@game}/#{hs.keys[0]}/results.txt", "w") do |line|
+			# 		raw_place.each do |i|
+			# 			line << i.to_s
+			# 	end
+			# end
 		end
 	end 
+
+	def total_results
+		all = Array.new
+		format = lambda do |name, event| 
+			hs = {"#{name}" => []}
+			hs["#{name}"] << event
+			return hs
+		end
+
+		check = lambda do |ary, name|
+			ary.each_with_index do |i,n|
+				if i.key?(name)
+					return n
+				end
+			end
+			return -1
+		end
+		@tourns.each do |id|
+			File.open("tourn/#{@game}/#{id}/results.json").each do |file|
+				JSON.parse(file).each do |info|
+					event = {"#{id}" => info["place"]}
+					checked = check.(all, info["name"])
+					if (checked >= 0)
+						hash = all[checked]
+						hash[hash.keys[0]] << event
+						all[checked] = hash
+					else
+						all << format.(info["name"], event)	
+					end
+				end
+			end
+		end
+		all.sort_by!(&(Proc.new do |i| i.keys[0] end))
+		File.open("tourn/#{@game}/results.json", "w") do |file|
+			all.each do |line|
+				file << line
+			end
+		end
+	end
 end
 
 parse = Parser.new("melee")
 parse.raw_results
-parse.write_results
+parse.total_results

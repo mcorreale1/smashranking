@@ -5,6 +5,9 @@ require 'challonge-api'
 require 'net/https'
 
 class Getter 
+		attr_reader :api
+		attr_reader :melee
+		attr_reader :smash4
 	def initialize
 		File.open('api.txt') do |e| 
 			#1 is brian, 2 is me
@@ -59,12 +62,9 @@ class Getter
 	def test 
 
 	end
-
-	attr_reader :api
-
 end
 
 get = Getter.new
 
-# get.call
-# get.write("melee")
+get.call
+get.write("melee")
