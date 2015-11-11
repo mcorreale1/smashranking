@@ -56,52 +56,94 @@ class Parser
 				raw_place.sort_by!(&sorter)
 				line << raw_place.to_json
 			end
-
-
-			# raw_place = hs[hs.keys[0]].to_a
-			# test = Proc.new { |mem| mem.place }
-			# raw_place.sort_by!(&sorter)
-			# File.open("tourn/#{@game}/#{hs.keys[0]}/results.txt", "w") do |line|
-			# 		raw_place.each do |i|
-			# 			line << i.to_s
-			# 	end
-			# end
 		end
 	end 
 
 	def total_results
+		alts = [["Patches", "P@ches"],
+			["Mac", "Macintosh"],
+			["Lemon", "Neffelemon"],
+			["Oldboy", "Slippy Toad"],
+			["Tachibana Sylphynford", "Kuriyama Mirai", "Yakushimaru Etsuko"],
+			["CasterlyChris", "Casterly Chris"],
+			["White", "Walz"],
+			["Beef Wellington", "Jeremy Beef"],
+			["Banana", "Bananas"],
+			["Sox", "OG Sox"],
+			["SBY2K", "SB Y2K"],
+			["555555", "David"]]
 		all = Array.new
 		format = lambda do |name, event| 
-			hs = {"#{name}" => []}
+			hs = {"#{name}" => [], "alt" => []}
 			hs["#{name}"] << event
 			return hs
 		end
 
-		check = lambda do |ary, name|
-			ary.each_with_index do |i,n|
-				if i.key?(name)
+		check = lambda do |name|
+			# all.each_with_index do |i,n|
+			# 	if i.key?(name)
+			# 		return n
+			# 	end
+			# end
+
+			all.each_with_index do |i,n|
+				if i.keys[0].downcase == name.downcase
 					return n
 				end
 			end
 			return -1
 		end
+
+		alt_name = lambda do |name|
+			alts.each_with_index do |i,n|
+				if i.include?(name)
+					#if there is an alt name found, find the first one
+					#one in all and return its location
+					i.each do |a| 
+						loc = check.(a)
+						if(loc >= 0) then return loc end
+					end
+				end
+				# i.each do |a|
+				# 	if (a.downcase == name.downcase)
+				# 		loc = check.(a.downcase)
+				# 		puts loc
+				# 		if (loc >= 0) then return loc end
+				# 	end
+				# end
+			end
+			return -1
+		end
+
+
+
 		@tourns.each do |id|
 			File.open("tourn/#{@game}/#{id}/results.json").each do |file|
 				JSON.parse(file).each do |info|
 					event = {"#{id}" => info["place"]}
-					checked = check.(all, info["name"])
-					if (checked >= 0)
-						hash = all[checked]
+					mult = check.(info["name"])
+					alt_loc = alt_name.(info["name"])
+					#check for multiple tournies entered	
+					if (mult >= 0)
+						hash = all[mult]
 						hash[hash.keys[0]] << event
-						all[checked] = hash
+						all[mult] = hash
+					#check if entered under alt name
+					elsif (alt_loc >= 0)
+						hash = all[alt_loc]
+						hash[hash.keys[0]] << event
+						hash["alt"] << info["name"].downcase
+						all[alt_loc] = hash
 					else
-						all << format.(info["name"], event)	
+						all << format.(info["name"].downcase, event)	
 					end
 				end
 			end
 		end
+		puts all
+		puts all.size
 		all.sort_by!(&(Proc.new do |i| i.keys[0] end))
-		File.open("tourn/#{@game}/results.json", "w") do |file|
+		File.open("tourn/#{@game}results.json", "w") do |file|
 			all.each do |line|
 				file << line
 			end
